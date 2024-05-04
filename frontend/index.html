@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sell Through Predictor</title>
+    <style>
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            font-family: Arial, sans-serif;
+        }
+
+        .container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .form-container {
+            padding: 20px;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+
+        form {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        label {
+            margin-bottom: 5px;
+        }
+
+        input, select, button {
+            margin-bottom: 10px;
+            padding: 5px;
+            border-radius: 4px;
+            border: 1px solid #ccc;
+            font-size: 14px;
+        }
+
+        button {
+            background-color: #007bff;
+            color: #fff;
+            cursor: pointer;
+        }
+
+        button:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+
+        #result {
+            font-weight: bold;
+        }
+
+        #result-text {
+            margin-top: 20px;
+        }
+
+        #mrp-error {
+            color: red;
+            margin-top: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Sell Through Predictor</h1>
+        
+        <div class="form-container">
+            <form id="predict-form">
+                <div>
+                    <label for="material">Material:</label>
+                    <select id="material">
+                        <!-- Options will be populated dynamically -->
+                    </select>
+                </div>
+                <div>
+                    <label for="product">Product:</label>
+                    <select id="product">
+                        <!-- Options will be populated dynamically -->
+                    </select>
+                </div>
+                <div>
+                    <label for="color">Color:</label>
+                    <select id="color">
+                        <!-- Options will be populated dynamically -->
+                    </select>
+                </div>
+                <div>
+                    <label for="mrp">MRP:</label>
+                    <input type="number" id="mrp" min="99" max="999" step="1">
+                    <span id="mrp-error"></span>
+                </div>
+                <button type="submit" id="submit-btn" disabled>Submit</button>
+            </form>
+        </div>
+
+        <div id="result-text">
+            <h2>Sell Through</h2>
+            <div id="result"></div>
+        </div>
+    </div>
+
+    <script>
+        async function fetchExcelData() {
+            const response = await fetch('/excel-data');
+            const data = await response.json();
+            return data;
+        }
+
+        async function populateDropdowns() {
+            const excelData = await fetchExcelData();
+
+            const materialDropdown = document.getElementById('material');
+            const productDropdown = document.getElementById('product');
+            const colorDropdown = document.getElementById('color');
+
+            const uniqueMaterials = [...new Set(excelData.map(row => row[0]))];
+            const uniqueProducts = [...new Set(excelData.map(row => row[1]))];
+            const uniqueColors = [...new Set(excelData.map(row => row[2]))];
+
+            uniqueMaterials.forEach(material => {
+                const option = document.createElement('option');
+                option.value = material;
+                option.textContent = material;
+                materialDropdown.appendChild(option);
+            });
+
+            uniqueProducts.forEach(product => {
+                const option = document.createElement('option');
+                option.value = product;
+                option.textContent = product;
+                productDropdown.appendChild(option);
+            });
+
+            uniqueColors.forEach(color => {
+                const option = document.createElement('option');
+                option.value = color;
+                option.textContent = color;
+                colorDropdown.appendChild(option);
+            });
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            populateDropdowns();
+
+            const form = document.getElementById('predict-form');
+            const mrpInput = document.getElementById('mrp');
+            const submitBtn = document.getElementById('submit-btn');
+            const mrpError = document.getElementById('mrp-error');
+            const resultDiv = document.getElementById('result');
+
+            form.addEventListener('submit', async (e) => {
+                e.preventDefault();
+
+                // Validate MRP input
+                const mrp = parseFloat(mrpInput.value);
+                if (mrp < 99 || mrp > 999 || isNaN(mrp)) {
+                    mrpError.textContent = 'MRP must be between 99 and 999';
+                    return;
+                }
+
+                mrpError.textContent = '';
+
+                const material = document.getElementById('material').value;
+                const product = document.getElementById('product').value;
+                const color = document.getElementById('color').value;
+
+                if (!material || !product || !color) {
+                    alert('Please select all fields');
+                    return;
+                }
+
+                const response = await fetch('/predict', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ material, product, color, mrp })
+                });
+
+                const data = await response.json();
+                resultDiv.textContent = `Sell Through: ${data.sellThrough}`;
+            });
+
+            // Enable submit button only when all dropdowns have a valid selection and MRP is filled
+            form.addEventListener('change', () => {
+                const material = document.getElementById('material').value;
+                const product = document.getElementById('product').value;
+                const color = document.getElementById('color').value;
+
+                submitBtn.disabled = !material || !product || !color || !mrpInput.value;
+            });
+
+            mrpInput.addEventListener('input', () => {
+                submitBtn.disabled = !mrpInput.value || !document.getElementById('material').value || !document.getElementById('product').value || !document.getElementById('color').value;
+            });
+        });
+    </script>
+</body>
+</html>
