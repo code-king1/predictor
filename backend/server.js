@@ -63,8 +63,7 @@ app.post('/predict', (req, res) => {
             sellThrough = Math.round(adjustedSellThrough);
         }
     } else {
-        // If no exact match, return a default value
-        sellThrough = 50; // You can adjust this value based on your preference
+        sellThrough = Math.floor(Math.random() * 67) + 30;
     }
 
     res.json({ sellThrough: sellThrough });
